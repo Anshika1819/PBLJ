@@ -1,38 +1,150 @@
-import java.sql.*;
+    index.xml
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Page</title>
+</head>
+<body>
+    <h2>User Login</h2>
+    <form action="LoginServlet" method="post">
+        Username: <input type="text" name="aastha"><br><br>
+        Password: <input type="password" name="415"><br><br>
+        <input type="submit" value="Login">
+    </form>
+</body>
+</html>
+LoginServlet
+package com.login;
 
-public class FetchEmployeeData {
-    public static void main(String[] args) {
-        String url = "jdbc:mysql://localhost:3306/your_database_name";  // Replace with your DB name
-        String user = "root";      // Replace with your MySQL username
-        String password = "root";  // Replace with your MySQL password
+import java.io.IOException;
+import java.io.PrintWriter;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
+public class LoginServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+
+        String user = request.getParameter("aastha");
+        String pass = request.getParameter("415");
+
+        if ("aastha".equals(user) && "415".equals(pass)) {
+            out.println("<h2>Welcome, " + user + "!</h2>");
+        } else {
+            out.println("<h3 style='color:red;'>Invalid username or password.</h3>");
+        }
+
+        out.close();
+    }
+}
+Web.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_5_0.xsd"
+         version="5.0">
+
+    <servlet>
+        <servlet-name>EmployeeServlet</servlet-name>
+        <servlet-class>com.employee.EmployeeServlet</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>EmployeeServlet</servlet-name>
+        <url-pattern>/EmployeeServlet</url-pattern> 
+    </servlet-mapping>
+
+</web-app>
+package com.employee;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+public class DBConnection {
+    private static final String URL = "jdbc:mysql://localhost:3306/companydb";
+    private static final String USER = "root";  
+    private static final String PASS = "Aastha@12345"; 
+
+    public static Connection getConnection() throws SQLException {
         try {
-            // Step 1: Load the driver
-            Class.forName("com.mysql.cj.jdbc.Driver");
-
-            // Step 2: Establish connection
-            Connection con = DriverManager.getConnection(url, user, password);
-            System.out.println("✅ Connected to Database!");
-
-            // Step 3: Create statement
-            Statement stmt = con.createStatement();
-
-            // Step 4: Execute query
-            ResultSet rs = stmt.executeQuery("SELECT * FROM Employee");
-
-            // Step 5: Display records
-            System.out.println("EmpID\tName\tSalary");
-            while (rs.next()) {
-                int id = rs.getInt("EmpID");
-                String name = rs.getString("Name");
-                double salary = rs.getDouble("Salary");
-                System.out.println(id + "\t" + name + "\t" + salary);
-            }
-
-            // Step 6: Close connection
-            con.close();
-        } catch (Exception e) {
+            Class.forName("com.mysql.cj.jdbc.Driver"); 
+        } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
+        return DriverManager.getConnection(URL, USER, PASS);
+    }
+}
+package com.employee;
+
+import java.io.*;
+import java.sql.*;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
+
+public class EmployeeServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+
+        String empIdParam = request.getParameter("empid");
+
+        out.println("<html><head><title>Employee Records</title></head><body>");
+        out.println("<h2>Employee Records</h2>");
+        out.println("<form action='EmployeeServlet' method='get'>");
+        out.println("Search by Employee ID: <input type='text' name='empid'/>");
+        out.println("<input type='submit' value='Search'/>");
+        out.println("</form><br>");
+
+        try (Connection con = DBConnection.getConnection()) {
+            Statement stmt;
+            ResultSet rs;
+
+            if (empIdParam != null && !empIdParam.isEmpty()) {
+                // Search specific employee
+                String query = "SELECT * FROM Employee WHERE EmpID = ?";
+                PreparedStatement ps = con.prepareStatement(query);
+                ps.setInt(1, Integer.parseInt(empIdParam));
+                rs = ps.executeQuery();
+
+                if (!rs.isBeforeFirst()) {
+                    out.println("<p>No employee found with ID: " + empIdParam + "</p>");
+                } else {
+                    out.println("<table border='1'><tr><th>EmpID</th><th>Name</th><th>Salary</th></tr>");
+                    while (rs.next()) {
+                        out.println("<tr><td>" + rs.getInt("EmpID") + "</td><td>"
+                                + rs.getString("Name") + "</td><td>"
+                                + rs.getDouble("Salary") + "</td></tr>");
+                    }
+                    out.println("</table>");
+                }
+            } else {
+                
+                stmt = con.createStatement();
+                rs = stmt.executeQuery("SELECT * FROM Employee");
+
+                out.println("<table border='1'><tr><th>EmpID</th><th>Name</th><th>Salary</th></tr>");
+                while (rs.next()) {
+                    out.println("<tr><td>" + rs.getInt("EmpID") + "</td><td>"
+                            + rs.getString("Name") + "</td><td>"
+                            + rs.getDouble("Salary") + "</td></tr>");
+                }
+                out.println("</table>");
+            }
+        } catch (Exception e) {
+            out.println("<p>Error: " + e.getMessage() + "</p>");
+            e.printStackTrace(out);
+        }
+
+        out.println("</body></html>");
     }
 }
