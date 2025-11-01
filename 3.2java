@@ -1,0 +1,252 @@
+src/
+ ├─ com.example.springdi/
+ │   ├─ Course.java
+ │   ├─ Student.java
+ │   ├─ AppConfig.java
+ │   └─ MainApp.java
+package com.example.springdi;
+
+public class Course {
+    private String courseName;
+
+    public Course() {
+        this.courseName = "Java Full Stack Development";
+    }
+
+    public String getCourseName() {
+        return courseName;
+    }
+}
+package com.example.springdi;
+
+public class Student {
+    private Course course;
+
+    // Constructor-based Injection
+    public Student(Course course) {
+        this.course = course;
+    }
+
+    public void showDetails() {
+        System.out.println("Student is enrolled in: " + course.getCourseName());
+    }
+}
+package com.example.springdi;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class AppConfig {
+
+    @Bean
+    public Course course() {
+        return new Course();
+    }
+
+    @Bean
+    public Student student() {
+        return new Student(course());
+    }
+}
+package com.example.springdi;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+
+public class MainApp {
+    public static void main(String[] args) {
+        ApplicationContext context = new AnnotationConfigApplicationContext(AppConfig.class);
+        Student student = context.getBean(Student.class);
+        student.showDetails();
+    }
+}
+src/
+ ├─ com.example.hibernatecrud/
+ │   ├─ Student.java
+ │   ├─ HibernateUtil.java
+ │   └─ StudentCRUD.java
+ └─ resources/
+     └─ hibernate.cfg.xml
+package com.example.hibernatecrud;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "student")
+public class Student {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int id;
+
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "course")
+    private String course;
+
+    @Column(name = "email")
+    private String email;
+
+    public Student() {}
+
+    public Student(String name, String course, String email) {
+        this.name = name;
+        this.course = course;
+        this.email = email;
+    }
+
+    // Getters and setters
+    public int getId() { return id; }
+    public String getName() { return name; }
+    public String getCourse() { return course; }
+    public String getEmail() { return email; }
+
+    public void setName(String name) { this.name = name; }
+    public void setCourse(String course) { this.course = course; }
+    public void setEmail(String email) { this.email = email; }
+}
+<?xml version='1.0' encoding='utf-8'?>
+<!DOCTYPE hibernate-configuration PUBLIC
+"-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+"http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+
+<hibernate-configuration>
+ <session-factory>
+
+  <property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
+  <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/spring_hibernate_db</property>
+  <property name="hibernate.connection.username">root</property>
+  <property name="hibernate.connection.password">your_password</property>
+
+  <property name="hibernate.dialect">org.hibernate.dialect.MySQL8Dialect</property>
+  <property name="hibernate.hbm2ddl.auto">update</property>
+  <property name="hibernate.show_sql">true</property>
+
+  <mapping class="com.example.hibernatecrud.Student"/>
+
+ </session-factory>
+</hibernate-configuration>
+package com.example.hibernatecrud;
+
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
+
+public class HibernateUtil {
+    private static SessionFactory factory;
+
+    static {
+        factory = new Configuration().configure("hibernate.cfg.xml").buildSessionFactory();
+    }
+
+    public static SessionFactory getSessionFactory() {
+        return factory;
+    }
+}
+package com.example.hibernatecrud;
+
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+import java.util.List;
+
+public class StudentCRUD {
+    public static void main(String[] args) {
+        Student student = new Student("Anshika", "Spring & Hibernate", "anshika@example.com");
+        createStudent(student);
+        readStudents();
+    }
+
+    // Create
+    public static void createStudent(Student student) {
+        Session session = HibernateUtil.getSessionFactory().openSession();
+        Transaction tx = session.beginTransaction();
+        session.save(student);
+        tx.commit();
+        session.close();
+    }
+
+    // Read
+    public static void readStudents() {
+        Session session = HibernateUtil.getSessionFactory().openSession();
+        List<Student> students = session.createQuery("from Student", Student.class).list();
+        for (Student s : students) {
+            System.out.println(s.getId() + " - " + s.getName() + " - " + s.getCourse());
+        }
+        session.close();
+    }
+}
+package com.example.bankapp;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "account")
+public class Account {
+    @Id
+    private int id;
+    private String name;
+    private double balance;
+
+    public Account() {}
+    public Account(int id, String name, double balance) {
+        this.id = id;
+        this.name = name;
+        this.balance = balance;
+    }
+
+    // Getters & Setters
+    public int getId() { return id; }
+    public String getName() { return name; }
+    public double getBalance() { return balance; }
+    public void setBalance(double balance) { this.balance = balance; }
+}
+package com.example.bankapp;
+
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.springframework.stereotype.Repository;
+import org.springframework.beans.factory.annotation.Autowired;
+
+@Repository
+public class AccountDAO {
+
+    @Autowired
+    private SessionFactory sessionFactory;
+
+    public Account getAccount(int id) {
+        return sessionFactory.getCurrentSession().get(Account.class, id);
+    }
+
+    public void updateAccount(Account account) {
+        sessionFactory.getCurrentSession().update(account);
+    }
+}
+package com.example.bankapp;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class BankService {
+
+    @Autowired
+    private AccountDAO accountDAO;
+
+    @Transactional
+    public void transferMoney(int fromId, int toId, double amount) {
+        Account from = accountDAO.getAccount(fromId);
+        Account to = accountDAO.getAccount(toId);
+
+        if (from.getBalance() < amount) {
+            throw new RuntimeException("Insufficient funds!");
+        }
+
+        from.setBalance(from.getBalance() - amount);
+        to.setBalance(to.getBalance() + amount);
+
+        accountDAO.updateAccount(from);
+        accountDAO.updateAccount(to);
+    }
+}
